@@ -40,7 +40,7 @@ function getPlusInfo(){
 var inBrowser = 0;
 var notificationChecked = 0;
 var loginTimer = 0;
-var loginDone = 0;
+localStorage.loginDone = 0;
 //var appPaused = 0;
 
 var loginInterval = null;
@@ -59,7 +59,9 @@ function onDeviceReady(){
     if (window.MobileAccessibility) {
         window.MobileAccessibility.usePreferredTextZoom(false);    
     }
-
+    if (StatusBar) {
+        StatusBar.styleDefault();
+    } 
     setupPush();
 
 	getPlusInfo(); 
@@ -87,7 +89,7 @@ function setupPush(){
                 //"senderID": "264121929701"                             
             },
             "browser": {
-                pushServiceURL: 'http://push.api.phonegap.com/v1/push'
+                pushServiceURL: 'https://push.api.phonegap.com/v1/push'
             },            
             "ios": {
                 "sound": true,
@@ -128,33 +130,51 @@ function setupPush(){
             }
             else if (data && data.additionalData && data.additionalData.payload){
                //if user NOT using app and push notification comes
-                var container = $$('body');
-                if (container.children('.progressbar, .progressbar-infinite').length) return; //don't run all this if there is a current progressbar loading
-                App.showProgressbar(container); 
+                App.showIndicator();
                
                 loginTimer = setInterval(function() {
-                    //alert(loginDone);
-                    if (loginDone) {
+                    //alert(localStorage.loginDone);
+                    if (localStorage.loginDone) {
                         clearInterval(loginTimer);
                         setTimeout(function(){
                             //alert('before processClickOnPushNotification');
                             processClickOnPushNotification([data.additionalData.payload]);
-                            App.hideProgressbar(container);               
+                            App.hideIndicator();                 
                         },1000); 
                     }
                 }, 1000); 
             }
+            if (device && device.platform && device.platform.toLowerCase() == 'ios') {
+                push.finish(
+                    () => {
+                      console.log('processing of push data is finished');
+                    },
+                    () => {
+                      console.log(
+                        'something went wrong with push.finish for ID =',
+                        data.additionalData.notId
+                      );
+                    },
+                    data.additionalData.notId
+                );
+            }
+                
         });
 
         if　(!localStorage.ACCOUNT){
-            push.clearAllNotifications();
+            push.clearAllNotifications(
+                () => {
+                  console.log('success');
+                },
+                () => {
+                  console.log('error');
+                }
+            );
         }
 }
 
 function onAppPause(){ 
-    if ($hub) {
-        $hub.stop();
-    }
+    
 } 
 function onAppResume(){    
     if (localStorage.ACCOUNT && localStorage.PASSWORD) {
@@ -162,9 +182,7 @@ function onAppResume(){
         getNewData();
     }
    
-    if ($hub) {
-        $hub.start();
-    } 
+    
 }  
 
  
@@ -180,48 +198,7 @@ function backFix(event){
     } 
 }
 
-function webSockConnect(){    
-    var MinorToken = getUserinfo().MinorToken;
-    var deviceToken = !localStorage.PUSH_DEVICE_TOKEN? '111' : localStorage.PUSH_DEVICE_TOKEN;
-    $hub = hubHelper({ url :"http://api.Quikdata.co:8088/",
-                           qs: {
-                                MinorToken : MinorToken,
-                                DeviceToken : deviceToken
-                           },
-                           hub: "v1Hub"
-    },{
-        receiveMessage: function(from, msg){
-            
-        },
-        receiveNotice: function(msg){
-            
-            /*if (!inBrowser) {                
-                plus.push.clear();
-            }  */          
-            //alert('websocket msg received');
-            console.log(msg);
-            var objMsg = isJsonString(msg);      
-            if ( objMsg ) {
-                var message = {};
-                var all_msg = [];                
-                
-                message.payload = msg;
-                all_msg.push(message);
-                
-                var deviceType = localStorage.DEVICE_TYPE; 
-                if (deviceType == "web") {
-                    setNotificationList(all_msg);
-                }                
-                getNewNotifications();
 
-                
-            }
-                
-        }
-    });
-            
-    $hub.start();
-}
 
 // Initialize your app
 var App = new Framework7({
@@ -283,10 +260,10 @@ var prevStatusLatLng = {
 
 var geofenceMarkerGroup = false; 
 
-var API_DOMIAN1 = "http://api.m2mglobaltech.com/QuikTrak/V1/";
+var API_DOMIAN1 = "https://api.m2mglobaltech.com/QuikTrak/V1/";
 var API_DOMIAN2 = "";
-var API_DOMIAN3 = "http://api.m2mglobaltech.com/QuikProtect/V1/";
-var API_DOMIAN4 = "http://api.m2mglobaltech.com/Quikloc8/V1/";
+var API_DOMIAN3 = "https://api.m2mglobaltech.com/QuikProtect/V1/";
+var API_DOMIAN4 = "https://api.m2mglobaltech.com/Quikloc8/V1/";
 var API_URL = {};
 API_URL.URL_GET_LOGIN = API_DOMIAN1 + "User/Auth?username={0}&password={1}&appKey={2}&mobileToken={3}&deviceToken={4}&deviceType={5}";
 //API_URL.URL_GET_LOGOUT2 = API_DOMIAN1 + "User/Logoff2?MajorToken={0}&MinorToken={1}&username={2}&mobileToken={3}";
@@ -304,7 +281,7 @@ API_URL.URL_SET_GEOLOCK_OFF = API_DOMIAN1 + "Device/Unlock?MajorToken={0}&MinorT
 API_URL.URL_GET_POSITION = API_DOMIAN1 + "Device/GetPosInfo?MinorToken={0}&Code={1}";
 API_URL.URL_GET_POSITION2 = API_DOMIAN1 + "Device/GetPosInfo2?MinorToken={0}&Code={1}";
 API_URL.URL_GET_POSITION_ARR = API_DOMIAN1 + "Device/GetHisPosArray?MinorToken={0}&Code={1}&From={2}&To={3}";
-API_URL.URL_GET_POSITION_ARR2 = "http://osrm.sinopacific.com.ua/playback/v4";
+API_URL.URL_GET_POSITION_ARR2 = "https://osrm.sinopacific.com.ua/playback/v4";
 API_URL.URL_GET_ALL_POSITIONS = API_DOMIAN1 + "Device/GetPosInfos?MinorToken={0}";
 API_URL.URL_GET_ALL_POSITIONS2 = API_DOMIAN1 + "Device/GetPosInfos2?MinorToken={0}&MajorToken={1}";
 API_URL.URL_GET_POSITION_GPRS = API_DOMIAN1 + "Device/GprsCommand?MinorToken={0}&Code={1}&Cmd=update";
@@ -318,8 +295,8 @@ API_URL.URL_GET_GEOFENCE_LIST = API_DOMIAN1 + "Device/GetFenceList";
 API_URL.URL_GEOFENCE_EDIT = API_DOMIAN1 + "Device/FenceEdit";
 API_URL.URL_GEOFENCE_DELETE = API_DOMIAN1 + "Device/FenceDelete";
 API_URL.URL_GET_GEOFENCE_ASSET_LIST = API_DOMIAN1 + "Device/GetFenceAssetList";
-API_URL.URL_PHOTO_UPLOAD = "http://upload.quiktrak.co/image/Upload";
-API_URL.URL_SUPPORT = "http://support.quiktrak.eu/?name={0}&loginName={1}&email={2}&phone={3}&s={4}";
+API_URL.URL_PHOTO_UPLOAD = "https://upload.quiktrak.co/image/Upload";
+API_URL.URL_SUPPORT = "https://support.quiktrak.eu/?name={0}&loginName={1}&email={2}&phone={3}&s={4}";
 
 API_URL.URL_GET_BALANCE = API_DOMIAN3 + "Client/Balance?MajorToken={0}&MinorToken={1}";
 API_URL.URL_SET_IMMOBILISATION = API_DOMIAN4 + "asset/Relay?MajorToken={0}&MinorToken={1}&code={2}&state={3}";
@@ -567,11 +544,10 @@ $$('body').on('click', 'a.external', function(event) {
 });
 
 $$('body').on('change keyup input click', '.only_numbers', function(){
-    if (this.value.match(/[^0-9]/g)) {
-	     this.value = this.value.replace(/[^0-9]/g, '');
-	}
+    if (this.value.match(/[^0-9-]/g)) {
+         this.value = this.value.replace(/[^0-9-]/g, '');
+    }
 });
-
 /*$$('body').on('click', '.navbar_title, .navbar_title_index', function(){
     //var json = '{"title":"GEOLOCK WARNING","type":1024,"imei":"0000004700673137","name":"A16 WATCH","lat":43.895091666666666,"lng":125.29207,"speed":0,"direct":0,"time":"2018-08-23 16:56:36"}';
     //showMsgNotification([json]);
@@ -1073,7 +1049,7 @@ App.onPageInit('asset.status', function (page) {
         if (asset && asset.Icon) {
             var pattern = /^IMEI_/i;
             if (pattern.test(asset.Icon)) {
-                AssetImg = 'http://upload.quiktrak.co/Attachment/images/'+asset.Icon+'?'+ new Date().getTime();
+                AssetImg = 'https://upload.quiktrak.co/Attachment/images/'+asset.Icon+'?'+ new Date().getTime();
             }
         }
 
@@ -2426,12 +2402,7 @@ function clearUserInfo(){
     var pushList = getNotificationList();
     
     localStorage.clear(); 
-    if ($hub) {
-        $hub.stop();  
-    }  
-    if(window.plus) {
-        plus.push.clear();
-    }
+  
 
     if (updateAssetsPosInfoTimer) {
         clearInterval(updateAssetsPosInfoTimer);
@@ -2547,7 +2518,7 @@ function login(){
                
                 //init_AssetList(); 
                 //initSearchbar();
-                webSockConnect();  
+                  
                 getNewNotifications();
                 
                 App.closeModal();                
@@ -2849,7 +2820,7 @@ function getAssetImg(params, imgFor){
     if (params && imgFor.assetList) {
         var pattern = /^IMEI_/i;   
         if (params.Icon && pattern.test(params.Icon)) {
-            assetImg = '<img class="item_asset_img" src="http://upload.quiktrak.co/Attachment/images/'+params.Icon+'?'+ new Date().getTime()+'alt="">';
+            assetImg = '<img class="item_asset_img" src="https://upload.quiktrak.co/Attachment/images/'+params.Icon+'?'+ new Date().getTime()+'alt="">';
         }else if (params.Name) {
             params.Name = $.trim(params.Name);
             var splitted = params.Name.split(' ');                
@@ -4343,7 +4314,7 @@ function setAssetListPosInfo(listObj){
     };
     //console.log(url);    
     //console.log(data);
-    loginDone = 0;
+    localStorage.loginDone = 0;
     JSON1.requestPost(url,data, function(result){   
             console.log(result);                       
             if (result.MajorCode == '000') {
@@ -4371,9 +4342,9 @@ function setAssetListPosInfo(listObj){
             }
             init_AssetList(); 
             initSearchbar(); 
-            loginDone = 1;
+            localStorage.loginDone = 1;
         },
-        function(){ loginDone = 1; }
+        function(){ localStorage.loginDone = 1; }
     ); 
 }
 
